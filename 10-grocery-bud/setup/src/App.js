@@ -2,54 +2,73 @@ import React, { useState, useEffect } from 'react'
 import List from './List'
 import Alert from './Alert'
 
+const getLocalStorage = () =>
+  localStorage.getItem('list') ? JSON.parse(localStorage.getItem('list')) : []
+
 function App() {
   const [name, setName] = useState('')
-  const [list, setList] = useState([])
+  const [list, setList] = useState(getLocalStorage())
   const [isEditing, setIsEditing] = useState(false)
   const [editID, setEditID] = useState(null)
   const [alert, setAlert] = useState({ show: false, message: '', type: '' })
 
-  useEffect(() => {
-    let timeout = setTimeout(() => {
-      setAlert({ show: false })
-    }, 5000)
-    return () => {
-      clearTimeout(timeout)
-    }
-  }, [alert])
+  const showAlert = (show = false, type = '', message = '') => {
+    setAlert({
+      show,
+      message,
+      type,
+    })
+  }
 
-  useEffect(() => {
-    if (isEditing) {
-      document.getElementById('name').innerText = list[editID].title
-    }
-  }, [editID, isEditing, list])
+  const clearList = () => {
+    showAlert(true, 'danger', 'Usunięto wszystkie pozycje')
+    setList([])
+  }
+
+  const removeItem = (id) => {
+    showAlert(true, 'danger', 'Usunięto pozycje')
+    const newList = list.filter((item) => item.id !== id)
+    setList(newList)
+  }
+
+  const editItem = (id) => {
+    const specificItem = list.find((item) => item.id === id)
+    setIsEditing(true)
+    setEditID(id)
+    setName(specificItem.title)
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
     console.log('submited')
     if (!name) {
-      setAlert({
-        show: true,
-        message: 'Dane nie mogą być puste',
-        type: 'danger',
-      })
-      console.log('alert')
+      showAlert(true, 'danger', 'Pole nie może być puste')
     } else if (name && isEditing) {
-      //editing
-      console.log('edytowanie')
+      setList(
+        list.map((item) =>
+          item.id === editID ? { ...item, title: name } : item
+        )
+      )
+      setName('')
+      setIsEditing(false)
+      setEditID(null)
+      showAlert(true, 'success', 'Dane zostały zmienione')
     } else {
-      //alert
-      console.log('dodawanie')
+      showAlert(true, 'success', 'Dodano do listy')
       const newItem = { id: new Date().getTime().toString(), title: name }
       setList([...list, newItem])
       setName('')
     }
   }
 
+  useEffect(() => {
+    localStorage.setItem('list', JSON.stringify(list))
+  }, [list])
+
   return (
     <section className='section-center'>
       <form className='grocery-form' onSubmit={handleSubmit}>
-        {alert.show && <Alert {...alert} />}
+        {alert.show && <Alert {...alert} removeAlert={showAlert} list={list} />}
         <h3>Grocery bud</h3>
         <div className='form-control'>
           <input
@@ -66,8 +85,14 @@ function App() {
         </div>
       </form>
       <div className='grocery-container'>
-        <List list={list} setIsEditing={setIsEditing} setEditID={setEditID} />
-        <button className='clear-btn' onClick={() => setList([])}>
+        <List
+          list={list}
+          setIsEditing={setIsEditing}
+          setEditID={setEditID}
+          removeItem={removeItem}
+          editItem={editItem}
+        />
+        <button className='clear-btn' onClick={() => clearList()}>
           Clear List
         </button>
       </div>
